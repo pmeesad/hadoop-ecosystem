@@ -1,0 +1,29 @@
+suanpalm2.kmutnb.ac.th {
+    tls pmeesad@gmail.com
+
+    reverse_proxy /jupyter/* http://docker-hadoop-jupyter-1:8888 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+    }
+
+    reverse_proxy /namenode/* http://namenode:9870 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+    }
+
+    reverse_proxy /resourcemanager/* http://resourcemanager:8088 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+    }
+
+    # Add other reverse proxy configurations as needed
+}
+
+:443 {
+    tls pmeesad@gmail.com
+
+    reverse_proxy /jupyter/* http://docker-hadoop-jupyter-1:8888
+    reverse_proxy /namenode/* http://namenode:9870
+    reverse_proxy /resourcemanager/* http://resourcemanager:8088
+    # Add other reverse proxy configurations as needed
+}

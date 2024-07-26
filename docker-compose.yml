@@ -1,0 +1,189 @@
+version: '3.8'
+
+services:
+  namenode:
+    image: pmeesad/hadoop:3.4.0
+    container_name: namenode
+    hostname: namenode
+    environment:
+      - CLUSTER_NAME=test
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+    volumes:
+      - /home/hadoop/hadoop/data/namenode:/hadoop/dfs/name
+      - ./hadoop/entrypoint.sh:/entrypoint.sh
+    ports:
+      - "9870:9870"
+      - "8020:8020"
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.2
+    entrypoint: /entrypoint.sh
+
+  datanode1:
+    image: pmeesad/hadoop:3.4.0
+    container_name: datanode1
+    hostname: datanode1
+    environment:
+      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+      - HDFS_CONF_dfs_datanode_data_dir=file:///hadoop/dfs/data
+    volumes:
+      - /home/hadoop/hadoop/data/datanode:/hadoop/dfs/data
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.3
+
+  resourcemanager:
+    image: pmeesad/hadoop:3.4.0
+    container_name: resourcemanager
+    hostname: resourcemanager
+    environment:
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
+    ports:
+      - "8088:8088"
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.4
+
+  nodemanager1:
+    image: pmeesad/hadoop:3.4.0
+    container_name: nodemanager1
+    hostname: nodemanager1
+    environment:
+      - YARN_CONF_yarn_resourcemanager_hostname=resourcemanager
+    ports:
+      - "8042:8042"
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.5
+
+  hive-metastore:
+    image: apache/hive:4.0.0-alpha-2
+    container_name: hive-metastore
+    hostname: hive-metastore
+    environment:
+      - SERVICE_NAME=metastore
+    ports:
+      - "9083:9083"
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.6
+
+  hive-server:
+    image: apache/hive:4.0.0-alpha-2
+    container_name: hive-server
+    hostname: hive-server
+    environment:
+      - SERVICE_NAME=hiveserver2
+    ports:
+      - "10000:10000"
+      - "10002:10002"
+    depends_on:
+      - hive-metastore
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.7
+
+  mysql:
+    image: mysql:5.7
+    container_name: mysql
+    hostname: mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: example_db
+    volumes:
+      - mysql-data:/var/lib/mysql
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.8
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    hostname: mongodb
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb-data:/data/db
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.9
+
+  jupyterlab:
+    build: ./jupyterlab
+    container_name: jupyterlab
+    hostname: jupyterlab
+    depends_on:
+      - namenode
+      - mysql
+      - mongodb    
+    ports:
+      - "8888:8888"
+    volumes:
+      - ~/.jupyterlab:/root/.jupyterlab
+      - jupyterlab-data:/workspace
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.10
+    
+
+
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    hostname: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.11
+
+
+  sqoop:
+    build: ./sqoop
+    container_name: sqoop
+    hostname: sqoop
+    depends_on:
+      - namenode
+      - mysql
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.12
+    volumes:
+      - hadoop_namenode:/hadoop/dfs/name
+    environment:
+      HADOOP_CONF_DIR: /opt/hadoop/etc/hadoop
+      SQOOP_HOME: /opt/sqoop
+
+
+  dns:
+    image: phensley/docker-dns
+    container_name: dns
+    hostname: dns
+    environment:
+      - PRIMARY_DNS=8.8.8.8
+      - DOMAINS=jupyterlab=192.168.50.2,hadoop=192.168.50.3,hive=192.168.50.4,mysql=192.168.50.5,mongodb=192.168.50.6
+    networks:
+      mynet:
+        ipv4_address: 192.168.50.13
+    cap_add:
+      - NET_ADMIN
+    ports:
+      - "8053:53"
+      - "8053:53/udp"
+
+volumes:
+  jupyterlab-data:
+  mysql-data:
+  mongodb-data:
+  hadoop_namenode:
+  hadoop_datanode1:
+
+networks:
+  mynet:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 192.168.50.0/24

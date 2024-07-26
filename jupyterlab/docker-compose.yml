@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  jupyterlab:
+    build: .
+    container_name: jupyterlab
+    hostname: jupyterlab
+    ports:
+      - "8888:8888"
+    volumes:
+      - jupyterlab_data:/opt/jupyter/work
+    environment:
+      - JUPYTER_PASSWORD=${JUPYTER_PASSWORD:-}  # Set this in a .env file or when running docker-compose
+    restart: unless-stopped
+    networks:
+      - bigdata_network
+
+networks:
+  bigdata_network:
+    driver: bridge
+
+volumes:
+  jupyterlab_data:
+    driver: local
